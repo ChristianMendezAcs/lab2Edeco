@@ -336,9 +336,26 @@ void encolarCancion(colaCanciones* Q,char* nombre,char* duracion,int idArtista,i
         Q->fin=nuevo;
     }
     else{
-        Q->fin->sig=nuevo;
-        Q->fin=nuevo;
+        Q->fin->sig = nuevo;
+		Q->fin = nuevo;	
     }
+}
+cancion* sacar(colaCanciones *Q){
+	cancion *aux;
+    if(Q->ini == NULL){
+        printf("cola vacia");
+        return NULL;
+    }
+	//cola con un elemento
+	if(Q->ini == Q->fin ){
+		aux = Q->ini;
+		Q->ini = NULL;
+		Q->fin = NULL;
+		return aux;
+	}	
+	aux = Q->ini;
+	Q->ini = Q->ini->sig;
+	return aux;
 }
 
 void mostrarColaCanciones(colaCanciones *Q){
@@ -369,13 +386,11 @@ int duracionSegundos(char* duracion){
     if(largo == 1){
         min=(duracion[0]-'0')*60;
         seg=((duracion[2]-'0')*10)+(duracion[3]-'0');
-        printf("\n%d\n",min+seg);
         return (min+seg);
         
     }
     min=(((duracion[0]-'0')*10)+(duracion[1]-'0'))*60;
     seg=((duracion[3]-'0')*10)+(duracion[4]-'0');
-    printf("\n%d\n",min+seg);
     return (min+seg);
 }
 /*
@@ -396,7 +411,7 @@ void leerArchivoCanciones(colaCanciones *Q){
         //printf("%s %s %d %d %d\n",nombre,duracion,codigoArtista,codigoGenero,popularidad);
         encolarCancion(Q,nombre,duracion,codigoArtista,codigoGenero,popularidad,seg);
     }
-    mostrarColaCanciones(Q);
+    //mostrarColaCanciones(Q);
     fclose(archivo);
 }
 /*
@@ -471,22 +486,61 @@ preferencia* leerArchivoPreferencia(preferencia *L){
     return L;
 }
 /*
- [10,9,12,13,24] []
- [10,12,13,24] [24]
+ e:cola de canciones
+ s:cancion
+ o:encontrar la cancion con mayor popularidad
  */
-void mayorPopularidad(colaCanciones*Q){
+int mayorPopularidad(colaCanciones*Q){
     cancion* aux;
-    cancion* menor;
-    int menor;
+    int max;
     aux=Q->ini;
-    menor=getPopularidadCancion(aux);
-    printf("m:%d",menor);
-    while(aux!=NULL){
-        if(menor > getPopularidadCancion(aux)){
-            
+    max=getPopularidadCancion(aux);//PIVOTE
+    if(aux->sig == NULL){ //HAY SOLO UNA CANCION
+        return max;
+    }
+    while(aux!=NULL){ //PARA N CANCIONES
+        if(max < getPopularidadCancion(aux)){
+            max=getPopularidadCancion(aux);
         }
+        aux=aux->sig;
+    }
+    return max;
+}
+void encolarCancion_2(colaCanciones*Q,cancion* aux){
+    cancion* nuevo=crearCancion(getNombreCancion(aux),getDuracionString(aux),getCodigoArtistaCancion(aux),getCodigoGeneroCancion(aux),getPopularidadCancion(aux),getDuracionCancion(aux));
+    if(Q->fin == NULL){
+        Q->ini=aux;
+        Q->fin=aux;
+    }
+    else{
+        Q->fin->sig=nuevo;
+        Q->fin=Q->fin->sig;
+        
     }
 }
+colaCanciones ordenarPopularidad(colaCanciones *Q){
+    colaCanciones ordenada=crearColaCanciones();
+    cancion* aux,*max;
+    int mayorEncontrado=0;
+    int i=0;
+    while(Q->ini!=NULL && i<10){
+        mayorEncontrado=mayorPopularidad(Q);
+        aux=sacar(Q);
+        if(mayorEncontrado == getPopularidadCancion(aux)){
+            encolarCancion_2(&ordenada,aux);
+        }
+        else{
+            encolarCancion_2(Q,aux);
+        }
+        i=i+1;
+    }
+    printf("Asi quedo Q:\n");
+    mostrarColaCanciones(Q);
+    printf("ordenada:\n");
+    mostrarColaCanciones(&ordenada);
+    return ordenada;
+}
+
 int main(){    
     colaArtista artistas;
     colaGenero generos;
@@ -496,9 +550,12 @@ int main(){
     artistas=crearColaArtista();
     generos=crearColaGenero();
     canciones=crearColaCanciones();
-    leerArchivoArtista(&artistas);
-    leerArchivoGenero(&generos);
+    //leerArchivoArtista(&artistas);
+    //leerArchivoGenero(&generos);
     leerArchivoCanciones(&canciones);
-    preferencias=leerArchivoPreferencia(preferencias);
+    mostrarColaCanciones(&canciones);
+    //preferencias=leerArchivoPreferencia(preferencias);
+    canciones=ordenarPopularidad(&canciones);
+    //mostrarColaCanciones(&canciones);
     return 0;
 }
