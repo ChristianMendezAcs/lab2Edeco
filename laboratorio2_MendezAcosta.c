@@ -158,7 +158,7 @@ genero* crearGenero(int id,char* nombre){
     s:nombre del genero
     d:retorna el nombre de un genero
  */
-char* getNombre(genero* generoA){
+char* getNombreGenero(genero* generoA){
      return generoA->nombreGenero;
 }
 /*TDA COLA GENERO*/
@@ -467,12 +467,13 @@ void mostrarLista(preferencia *L){
     s:preferencia
     o:registrar el tiempo maximo y el orden de las preferencias
  */
-preferencia* leerArchivoPreferencia(preferencia *L){
+preferencia* leerArchivoPreferencia(preferencia *L,int *tiempo){
     char* duracion=(char*)malloc(sizeof(char)*7);
     char ordenPreferencias[200];
     FILE* archivo;
     archivo=fopen("preferencias.in","r");
     fgets(duracion,7,archivo);
+    *tiempo=duracionSegundos(duracion);
     fgets(ordenPreferencias,200,archivo);
     printf("%s%s",duracion,ordenPreferencias);
     char* separador=strtok(ordenPreferencias," ");
@@ -506,6 +507,27 @@ int mayorPopularidad(colaCanciones*Q){
     }
     return max;
 }
+/*
+ e:cola canciones, popularidad
+ s:menor duracion
+ o:busca la cancion segun la menor duracion dada una popularidad
+ */
+int menorDuracion(colaCanciones* Q,int popularidad){
+    cancion* aux;
+    int min;
+    aux=Q->ini;
+    min=getDuracionCancion(aux);//PIVOTE
+    if(aux->sig == NULL){ //HAY SOLO UNA CANCION
+        return min;
+    }
+    while(aux!=NULL){ //PARA N CANCIONES
+        if(min > getDuracionCancion(aux) && getPopularidadCancion(aux) == popularidad){
+            min=getDuracionCancion(aux);
+        }
+        aux=aux->sig;
+    }
+    return min;
+}
 void encolarCancion_2(colaCanciones*Q,cancion* aux){
     cancion* nuevo=crearCancion(getNombreCancion(aux),getDuracionString(aux),getCodigoArtistaCancion(aux),getCodigoGeneroCancion(aux),getPopularidadCancion(aux),getDuracionCancion(aux));
     if(Q->fin == NULL){
@@ -518,6 +540,11 @@ void encolarCancion_2(colaCanciones*Q,cancion* aux){
         
     }
 }
+/*
+    e:cola canciones
+    s:cola canciones
+    o:ordenar una cola segun su popularidad
+ */
 colaCanciones ordenarPopularidad(colaCanciones *Q){
     colaCanciones ordenada=crearColaCanciones();
     cancion* aux,*max;
@@ -540,22 +567,243 @@ colaCanciones ordenarPopularidad(colaCanciones *Q){
     mostrarColaCanciones(&ordenada);
     return ordenada;
 }
+/*
+ e:cola,id del artista
+ s:nombre artista
+ o:busca el nombre de un artista dado un id
+ */
+char* buscarArtista(colaArtista* Q,int id){
+    artista* aux=Q->ini;
+    while(aux!=NULL){
+        if(getIdArtista(aux)==id){
+            return (getNombreArtista(aux));
+        }
+        aux=aux->sig;
+    }
+}
+/*
+ e:cola canciones,cola artistas
+ s:cancion
+ o:determinar la cancion de orden mas bajo
+ */
+char* alfabetico(colaCanciones*Q,colaArtista *P,int popularidad){
+    cancion* aux=Q->ini;
+    cancion* primera=Q->ini;
+    char* nombreAux=buscarArtista(P,getCodigoArtistaCancion(primera));
+    while(aux!=NULL){
+        if((strcmp(nombreAux,buscarArtista(P,getCodigoArtistaCancion(aux)))>0) && getPopularidadCancion(aux)== popularidad){
+            primera=aux;
+            nombreAux=buscarArtista(P,getCodigoArtistaCancion(primera));
+        }
+        aux=aux->sig;
+    }
+    return nombreAux;
+}
 
+colaCanciones ordenarAlfabetica(colaCanciones* Q){
+    cancion* aux=Q->ini;
+    colaCanciones temp=crearColaCanciones();
+    while(aux->sig!=NULL){
+        if(getPopularidadCancion(aux)==getPopularidadCancion(aux->sig)){
+        }
+        aux=aux->sig;
+    }
+}
+/*
+ e:cola canciones,cola artistas
+ s:cola canciones
+ o:ordena las canciones segun los criterios dados
+ */
+colaCanciones ordenarCanciones(colaCanciones *Q,colaArtista *P){
+    colaCanciones ordenada=crearColaCanciones();
+    cancion *aux,*max;
+    int mayorEncontrado,menorEncontrado;
+    char* nombreEncontrado;
+    int i=0;
+    while(Q->ini!=NULL && i<100){
+        mayorEncontrado=mayorPopularidad(Q);
+        menorEncontrado=menorDuracion(Q,mayorEncontrado);
+        nombreEncontrado=alfabetico(Q,P,mayorEncontrado);
+        aux=sacar(Q);
+        if(mayorEncontrado == getPopularidadCancion(aux) && getDuracionCancion(aux)==menorEncontrado && strcmp(nombreEncontrado,buscarArtista(P,getCodigoArtistaCancion(aux)))==0){
+            encolarCancion_2(&ordenada,aux);
+        }
+        else{
+            encolarCancion_2(Q,aux);
+        }
+        i=i+1;
+    }
+    return ordenada;
+}
+/*
+ e:cola de genero, id
+ s:nombre genero
+ o:determinar el genero dado un id
+ */
+char* buscarGenero(colaGenero *Q,int idGenero){
+    genero* aux=Q->ini;
+    while(aux!=NULL){
+        if(getIdGenero(aux)==idGenero){
+            return (getNombreGenero(aux));
+        }
+        aux=aux->sig;
+    }
+}
+/*
+ e:cola canciones
+ s:vacio
+ o:escribir en un archivo las canciones ordenadas
+ */
+void escribirArchivoSalida(colaCanciones *Q,colaArtista *P,colaGenero *M){
+    cancion* aux=Q->ini;
+    char* nombreArtista;
+    char* genero;
+    if (Q->ini == NULL){
+        return;
+    }
+    FILE* archivo;
+    archivo=fopen("salida.out","w");
+    while(aux!=NULL){
+        nombreArtista=buscarArtista(P,getCodigoArtistaCancion(aux));
+        genero=buscarGenero(M,getCodigoGeneroCancion(aux));
+        fprintf(archivo,"%d;%s;%s;%s;%s\n",getPopularidadCancion(aux),getNombreCancion(aux),getDuracionString(aux),nombreArtista,genero);
+        aux=aux->sig;
+    }
+    fclose(archivo);
+}
+/*
+ e:dato
+ s:1,0
+ o:determinar si un id se encuentra en las preferencias
+ */
+int estaEnPreferencias(int id,preferencia* P){
+    preferencia *aux=P;
+    while(aux!=NULL){
+        if(id==aux->dato){
+            return 1;
+        }
+        aux=aux->sig;
+    }
+    return 0;
+}
+int mayorPopularidadGenero(colaCanciones *Q,int genero){
+    cancion *aux=Q->ini;
+    int mayorTemp=0;
+    while(aux!=NULL){
+        if(getPopularidadCancion(aux)>mayorTemp && getCodigoGeneroCancion(aux)==genero){
+            mayorTemp=getPopularidadCancion(aux);
+        }
+        aux=aux->sig;
+    }
+    return mayorTemp;
+}
+colaCanciones filtrarCanciones(colaCanciones* Q,preferencia* P){
+    colaCanciones filtrada=crearColaCanciones();
+    cancion* auxCan;
+    preferencia* auxPref=P;
+    int maxPopularidad;
+    int i=0;
+    while(auxPref!=NULL && i<30){
+        while (auxCan!=NULL && i<30){
+            maxPopularidad=mayorPopularidadGenero(Q,auxPref->dato);
+            auxCan=sacar(Q);
+            if(getCodigoGeneroCancion(auxCan)==auxPref->dato && maxPopularidad == getPopularidadCancion(auxCan)){
+                cancion* nuevo=crearCancion(getNombreCancion(auxCan),getDuracionString(auxCan),getCodigoArtistaCancion(auxCan),getCodigoGeneroCancion(auxCan),getPopularidadCancion(auxCan),getDuracionCancion(auxCan));
+                encolarCancion_2(&filtrada,nuevo);
+               break;
+            }
+            else{
+                encolarCancion_2(Q,auxCan);
+            }
+            i=i+1;
+        }
+        auxCan=Q->ini;
+        auxPref=auxPref->sig;
+        if(auxPref== NULL){
+            auxPref=P;
+        }
+    }
+    mostrarColaCanciones(&filtrada);
+    return filtrada;
+}
+void transformarString(int segundos,char* t){
+    int auxDecenas,auxUnidad,minutos=0;
+    while(segundos-60>=0){
+        segundos=segundos-60;
+        minutos=minutos+1;
+    }
+    if (minutos==0 ){
+        t[0]='0';
+        t[1]='0';
+        t[2]=':';
+    }
+    if(minutos<10){
+        t[0]='0';
+        t[1]=minutos+'0';
+        t[2]=':';
+    }
+    if (minutos>10){
+        auxDecenas=minutos/10;
+        auxUnidad=minutos-auxDecenas*10;
+        t[3]=auxDecenas+'0';
+        t[4]=auxUnidad+'0';
+    }
+    if(segundos<10){
+        t[3]='0';
+        t[4]=segundos+'0';
+        return;
+    }
+    auxDecenas=segundos/10;
+    auxUnidad=segundos-auxDecenas*10;
+    t[3]=auxDecenas+'0';
+    t[4]=auxUnidad+'0';
+    return;    
+}
+void escribirPlaylist(colaCanciones *Q,colaArtista *P,colaGenero *M,int tiempoMax){
+    cancion* aux=Q->ini;
+    char* nombreArtista;
+    char* genero;
+    int acum=0;
+    if (Q->ini == NULL){
+        return;
+    }
+    FILE* archivo;
+    archivo=fopen("playlist.out","w");
+    while(acum<tiempoMax){
+        acum=acum+getDuracionCancion(aux);
+        nombreArtista=buscarArtista(P,getCodigoArtistaCancion(aux));
+        genero=buscarGenero(M,getCodigoGeneroCancion(aux));
+        fprintf(archivo,"%d;%s;%s;%s;%s\n",getPopularidadCancion(aux),getNombreCancion(aux),getDuracionString(aux),nombreArtista,genero);
+        aux=aux->sig;
+        if(aux==NULL){
+            aux=Q->ini;
+        }
+    }
+    if(acum-tiempoMax>0){
+        char t[6];
+        transformarString(acum-tiempoMax,t);
+        fprintf(archivo,"%s\n",t);
+    }
+    fclose(archivo);
+}
 int main(){    
     colaArtista artistas;
     colaGenero generos;
     colaCanciones canciones;
     preferencia* preferencias=NULL;
+    int tiempo;
     //
     artistas=crearColaArtista();
     generos=crearColaGenero();
     canciones=crearColaCanciones();
-    //leerArchivoArtista(&artistas);
-    //leerArchivoGenero(&generos);
+    leerArchivoArtista(&artistas);
+    leerArchivoGenero(&generos);
     leerArchivoCanciones(&canciones);
     mostrarColaCanciones(&canciones);
-    //preferencias=leerArchivoPreferencia(preferencias);
-    canciones=ordenarPopularidad(&canciones);
-    //mostrarColaCanciones(&canciones);
+    preferencias=leerArchivoPreferencia(preferencias,&tiempo);
+    canciones=ordenarCanciones(&canciones,&artistas);
+    escribirArchivoSalida(&canciones,&artistas,&generos);
+    canciones=filtrarCanciones(&canciones,preferencias);
+    escribirPlaylist(&canciones,&artistas,&generos,tiempo);
     return 0;
 }
